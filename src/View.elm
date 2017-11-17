@@ -26,7 +26,10 @@ body {
 view model =
   div []
     [ node "style" [] [ text css ]
-    , ul [ id "videos" ] <| List.map (videoView model) model.videos
+    , ul [ id "videos" ]
+      <| List.map (videoView model)
+      <| List.reverse
+      <| List.sortBy .publishedAt model.videos
     ]
 
 videoView model video =
@@ -34,12 +37,13 @@ videoView model video =
     name = displayNameFor model.users video.userId
   in
   li [ class "video" ]
-    [ a [ href ("https://twitch.tv/"++name) ] [ img [ class "preview", src (imagePercentTemplateUrl 320 180 video.thumbnailUrl), width 239, height 134 ] [] ]
+    [ a [ href ("https://twitch.tv/videos/"++video.id) ] [ img [ class "preview", src (imagePercentTemplateUrl 320 180 video.thumbnailUrl), width 239, height 134 ] [] ]
     , div [ class "info" ]
       [ div [ class "info-text" ]
         [ p [ class "title", title video.title ] [ text video.title ]
         , br [] []
         , p [ class "name" ] [ text name ]
+        , p [ class "date" ] [ text video.publishedAt ]
         ]
       ]
     ]
