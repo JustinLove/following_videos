@@ -1,7 +1,7 @@
 module View exposing (Msg(..), view)
 
 import Twitch.Deserialize exposing (User)
-import Twitch.Template exposing (imageTemplateUrl)
+import Twitch.Template exposing (imagePercentTemplateUrl)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -26,20 +26,26 @@ body {
 view model =
   div []
     [ node "style" [] [ text css ]
-    , ul [ id "videos" ] <| List.map (videoView model) model.users
+    , ul [ id "videos" ] <| List.map (videoView model) model.videos
     ]
 
-videoView model user =
+videoView model video =
   let
-    name = user.displayName
+    name = displayNameFor model.users video.userId
   in
   li [ class "video" ]
-    [ a [ href ("https://twitch.tv/"++name) ] [ text name ]
+    [ a [ href ("https://twitch.tv/"++name) ] [ img [ class "preview", src (imagePercentTemplateUrl 320 180 video.thumbnailUrl), width 239, height 134 ] [] ]
     , div [ class "info" ]
       [ div [ class "info-text" ]
-        [ p [ class "title", title name ] [ text name ]
+        [ p [ class "title", title video.title ] [ text video.title ]
         , br [] []
         , p [ class "name" ] [ text name ]
         ]
       ]
     ]
+
+displayNameFor : List User -> String -> String
+displayNameFor users userId =
+  List.filterMap (\u -> if u.id == userId then Just u.displayName else Nothing) users
+   |> List.head
+   |> Maybe.withDefault "unknown"

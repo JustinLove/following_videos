@@ -1,4 +1,4 @@
-import Twitch.Deserialize exposing (User, Follow)
+import Twitch.Deserialize exposing (User, Follow, Video)
 import Twitch.Id
 import View
 
@@ -8,12 +8,14 @@ import Time
 import Json.Decode
 
 requestLimit = 100
-requestRate = 5
+requestRate = 0.5
+videoLimit = 5
 
 type Msg
   = Self (Result Http.Error (List User))
-  | Users (Result Http.Error (List User))
   | Follows (Result Http.Error (List Follow))
+  | Users (Result Http.Error (List User))
+  | Videos (Result Http.Error (List Video))
   | NextRequest Time.Time
   | UI (View.Msg)
 
@@ -21,7 +23,9 @@ type alias Model =
   { self : User
   , follows : List Follow
   , users : List User
+  , videos : List Video
   , pendingUsers : List String
+  , pendingVideos : List String
   , pendingRequests : List (Cmd Msg)
   , outstandingRequests : Int
   }
@@ -38,7 +42,9 @@ init =
   ( { self = User "-" "-"
     , follows = []
     , users = []
+    , videos = []
     , pendingUsers = []
+    , pendingVideos = []
     , pendingRequests = [fetchSelf Twitch.Id.userName]
     , outstandingRequests = 0
     }
@@ -62,6 +68,20 @@ update msg model =
     Self (Err error) ->
       let _ = Debug.log "self fetch error" error in
       (model, Cmd.none)
+    Follows (Ok follows) ->
+      let userIds = List.map .to_id follows in
+      (
+        { model
+        | follows = List.append model.follows follows
+        , pendingVideos = List.append model.pendingVideos userIds
+        , pendingRequests = List.append model.pendingRequests
+          ((fetchUsers userIds) :: (List.take videoLimit <| List.map fetchVideos userIds))
+        }
+      , Cmd.none
+      )
+    Follows (Err error) ->
+      let _ = Debug.log "follow fetch error" error in
+      (model, Cmd.none)
     Users (Ok users) ->
       (fetchNextUserBatch requestLimit
         { model
@@ -74,17 +94,14 @@ update msg model =
     Users (Err error) ->
       let _ = Debug.log "user fetch error" error in
       (model, Cmd.none)
-    Follows (Ok follows) ->
-      (
-        { model
-        | follows = List.append model.follows follows
-        , pendingRequests = List.append model.pendingRequests
-          [fetchUsers (List.map .to_id follows)]
+    Videos (Ok videos) ->
+      ( { model
+        | videos = List.append model.videos videos
         }
       , Cmd.none
       )
-    Follows (Err error) ->
-      let _ = Debug.log "follow fetch error" error in
+    Videos (Err error) ->
+      let _ = Debug.log "video fetch error" error in
       (model, Cmd.none)
     NextRequest _ ->
       case model.pendingRequests of
@@ -141,6 +158,14 @@ fetchFollows userIds =
     Cmd.none
   else
     helix Follows (fetchFollowsUrl userIds) Twitch.Deserialize.follows
+
+fetchVideosUrl : String -> String
+fetchVideosUrl userId =
+  "https://api.twitch.tv/helix/videos?first=3&period=week&user_id=" ++ userId
+
+fetchVideos : String -> Cmd Msg
+fetchVideos userId =
+  helix Videos (fetchVideosUrl userId) Twitch.Deserialize.videos
 
 helix : ((Result Http.Error a) -> Msg) -> String -> Json.Decode.Decoder a -> Cmd Msg
 helix tagger url decoder =
