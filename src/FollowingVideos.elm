@@ -39,7 +39,7 @@ init =
     , follows = []
     , users = []
     , pendingUsers = []
-    , pendingRequests = [fetchUsers Self [Twitch.Id.userName]]
+    , pendingRequests = [fetchSelf Twitch.Id.userName]
     , outstandingRequests = 0
     }
   , Cmd.none
@@ -79,7 +79,7 @@ update msg model =
         { model
         | follows = List.append model.follows follows
         , pendingRequests = List.append model.pendingRequests
-          []
+          [fetchUsers (List.map .to_id follows)]
         }
       , Cmd.none
       )
@@ -109,19 +109,27 @@ fetchNextUserBatch batch model =
   { model
   | pendingUsers = List.drop batch model.pendingUsers
   , pendingRequests = List.append model.pendingRequests
-    [fetchUsers Users <| List.take batch model.pendingUsers]
+    [fetchUsers <| List.take batch model.pendingUsers]
   }
+
+fetchSelfUrl : String -> String
+fetchSelfUrl name =
+  "https://api.twitch.tv/helix/users?login=" ++ name
+
+fetchSelf : String -> Cmd Msg
+fetchSelf name =
+  helix Self (fetchSelfUrl name) Twitch.Deserialize.users
 
 fetchUsersUrl : List String -> String
 fetchUsersUrl users =
-  "https://api.twitch.tv/helix/users?login=" ++ (String.join "&login=" users)
+  "https://api.twitch.tv/helix/users?id=" ++ (String.join "&id=" users)
 
-fetchUsers : (Result Http.Error (List User) -> Msg) -> List String -> Cmd Msg
-fetchUsers tagger users =
+fetchUsers : List String -> Cmd Msg
+fetchUsers users =
   if List.isEmpty users then
     Cmd.none
   else
-    helix tagger (fetchUsersUrl users) Twitch.Deserialize.users
+    helix Users (fetchUsersUrl users) Twitch.Deserialize.users
 
 fetchFollowsUrl : List String -> String
 fetchFollowsUrl userIds =

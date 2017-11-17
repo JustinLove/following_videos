@@ -20,16 +20,26 @@ body {
 .info { display: flex; overflow-x: hidden; }
 .game-image { flex-shrink: 0; margin-right: 0.5em; }
 .info-text p { margin: 0.2em; font-size: 0.8em; white-space: nowrap; }
-.channel {
-  background-color: rgb(14, 12, 19);
-  color: rgb(250, 249, 250);
-  border: 1px solid #392e5c;
-}
 """
 
 --view : Model -> Html Msg
 view model =
   div []
     [ node "style" [] [ text css ]
-    , ul [ id "videos" ] <| List.map (.to_id >> text >> List.singleton >> li [ class "video"]) model.follows
+    , ul [ id "videos" ] <| List.map (videoView model) model.users
+    ]
+
+videoView model user =
+  let
+    name = user.displayName
+  in
+  li [ class "video" ]
+    [ a [ href ("https://twitch.tv/"++name) ] [ text name ]
+    , div [ class "info" ]
+      [ div [ class "info-text" ]
+        [ p [ class "title", title name ] [ text name ]
+        , br [] []
+        , p [ class "name" ] [ text name ]
+        ]
+      ]
     ]
