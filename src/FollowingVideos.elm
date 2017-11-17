@@ -8,8 +8,8 @@ import Time
 import Json.Decode
 
 requestLimit = 100
-requestRate = 0.5
-videoLimit = 5
+requestRate = 0.47
+videoLimit = requestLimit
 
 type Msg
   = Self (Result Http.Error (List User))

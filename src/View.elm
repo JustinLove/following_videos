@@ -15,6 +15,7 @@ body {
   background-color: rgb(23, 20, 31);
   color: rgb(218, 216, 222);
 }
+header { padding-left: 40px; }
 #videos { display: flex; flex-wrap: wrap; list-style-type: none;}
 .video { width: 240px; height: 200px; padding: 10px; }
 .info { display: flex; overflow-x: hidden; }
@@ -26,6 +27,18 @@ body {
 view model =
   div []
     [ node "style" [] [ text css ]
+    , header []
+      [ span [ class "user" ] [ text model.self.displayName ]
+      , text " following "
+      , span [ class "follows" ] [ text <| toString <| List.length model.follows ]
+      , text " "
+      , progress
+        [ Html.Attributes.max <| toString <| List.length model.follows
+        , value <| toString <| List.length model.pendingRequests
+        ] []
+      , text " "
+      , span [ class "pending" ] [ text <| toString <| List.length model.pendingRequests ]
+      ]
     , ul [ id "videos" ]
       <| List.map (videoView model)
       <| List.reverse
