@@ -1,4 +1,13 @@
-module Twitch.Deserialize exposing (User, LiveStream, Game, users, liveStreams, games)
+module Twitch.Deserialize exposing
+  ( User
+  , LiveStream
+  , Game
+  , Follow
+  , users
+  , liveStreams
+  , games
+  , follows
+  )
 
 import Json.Decode exposing (..)
 
@@ -101,3 +110,36 @@ game =
     (field "id" string)
     (field "name" string)
     (field "box_art_url" string)
+
+{-"data":
+   [
+      {
+         "from_id":"171003792",
+         "to_id":"23161357",
+         "followed_at":"2017-08-22T22:55:24Z"
+      },
+      {
+         "from_id":"113627897",
+         "to_id":"23161357",
+         "followed_at":"2017-08-22T22:55:04Z"
+      },
+      . . . 
+   ],
+   "pagination":{"cursor":"eyJiIjpudWxsLCJhIjoiMTUwMzQ0MTc3NjQyNDQyMjAwMCJ9"}
+-}
+
+type alias Follow =
+  { from_id : String
+  , to_id : String
+  }
+
+follows : Decoder (List Follow)
+follows =
+  field "data" (list follow)
+
+follow : Decoder Follow
+follow =
+  map2 Follow
+    (field "from_id" string)
+    (field "to_id" string)
+

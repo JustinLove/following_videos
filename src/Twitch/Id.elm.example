@@ -1,4 +1,5 @@
-module Twitch.Id exposing (clientId)
+module Twitch.Id exposing (clientId, userName)
 
 clientId = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+userName = "wondible"
 

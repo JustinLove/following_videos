@@ -15,8 +15,8 @@ body {
   background-color: rgb(23, 20, 31);
   color: rgb(218, 216, 222);
 }
-#streams { display: flex; flex-wrap: wrap; list-style-type: none;}
-.stream { width: 240px; height: 200px; padding: 10px; }
+#videos { display: flex; flex-wrap: wrap; list-style-type: none;}
+.video { width: 240px; height: 200px; padding: 10px; }
 .info { display: flex; overflow-x: hidden; }
 .game-image { flex-shrink: 0; margin-right: 0.5em; }
 .info-text p { margin: 0.2em; font-size: 0.8em; white-space: nowrap; }
@@ -31,4 +31,5 @@ body {
 view model =
   div []
     [ node "style" [] [ text css ]
+    , ul [ id "videos" ] <| List.map (.to_id >> text >> List.singleton >> li [ class "video"]) model.follows
     ]
