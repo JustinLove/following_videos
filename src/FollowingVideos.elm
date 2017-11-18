@@ -3,12 +3,14 @@ import Twitch.Id
 import View
 
 import Html
+import Navigation exposing (Location)
 import Http
 import Time
 import Json.Decode
 
 requestLimit = 100
-requestRate = 0.47
+rateLimit = 30
+authRateLimit = 120
 videoLimit = requestLimit
 
 type Msg
@@ -17,10 +19,13 @@ type Msg
   | Users (Result Http.Error (List User))
   | Videos (Result Http.Error (List Video))
   | NextRequest Time.Time
+  | CurrentUrl Location
   | UI (View.Msg)
 
 type alias Model =
-  { self : User
+  { location : Location
+  , auth : Maybe String
+  , self : User
   , follows : List Follow
   , users : List User
   , videos : List Video
@@ -30,22 +35,25 @@ type alias Model =
   , outstandingRequests : Int
   }
 
-main = Html.program
+main = Navigation.program CurrentUrl
   { init = init
   , update = update
   , subscriptions = subscriptions
   , view = (\model -> Html.map UI (View.view model))
   }
 
-init : (Model, Cmd Msg)
-init =
-  ( { self = User "-" "-"
+init : Location -> (Model, Cmd Msg)
+init location =
+  let auth = extractAccessToken location in
+  ( { location = location
+    , auth = auth
+    , self = User "-" "-"
     , follows = []
     , users = []
     , videos = []
     , pendingUsers = []
     , pendingVideos = []
-    , pendingRequests = [fetchSelf Twitch.Id.userName]
+    , pendingRequests = [fetchSelf auth Twitch.Id.userName]
     , outstandingRequests = 0
     }
   , Cmd.none
@@ -54,11 +62,13 @@ init =
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    CurrentUrl location ->
+      ( { model | location = location }, Cmd.none)
     Self (Ok (user::_)) ->
       ( { model
         | self = user
         , pendingRequests = List.append model.pendingRequests
-          [fetchFollows [user.id]]
+          [fetchFollows model.auth [user.id]]
         }
       , Cmd.none
       )
@@ -75,7 +85,7 @@ update msg model =
         | follows = List.append model.follows follows
         , pendingVideos = List.append model.pendingVideos userIds
         , pendingRequests = List.append model.pendingRequests
-          ((fetchUsers userIds) :: (List.take videoLimit <| List.map fetchVideos userIds))
+          ((fetchUsers model.auth userIds) :: (List.take videoLimit <| List.map (fetchVideos model.auth) userIds))
         }
       , Cmd.none
       )
@@ -119,64 +129,114 @@ subscriptions model =
   if List.isEmpty model.pendingRequests then
     Sub.none
   else
-    Time.every (Time.second/requestRate) NextRequest
+    Time.every ((requestRate model.auth)*1.05) NextRequest
+
+requestRate : Maybe String -> Float
+requestRate auth =
+  case auth of
+    Just _ ->
+      (60*Time.second/authRateLimit)
+    Nothing ->
+      (60*Time.second/rateLimit)
 
 fetchNextUserBatch : Int -> Model -> Model
 fetchNextUserBatch batch model =
   { model
   | pendingUsers = List.drop batch model.pendingUsers
   , pendingRequests = List.append model.pendingRequests
-    [fetchUsers <| List.take batch model.pendingUsers]
+    [fetchUsers model.auth <| List.take batch model.pendingUsers]
   }
 
 fetchSelfUrl : String -> String
 fetchSelfUrl name =
   "https://api.twitch.tv/helix/users?login=" ++ name
 
-fetchSelf : String -> Cmd Msg
-fetchSelf name =
-  helix Self (fetchSelfUrl name) Twitch.Deserialize.users
+fetchSelf : Maybe String -> String -> Cmd Msg
+fetchSelf auth name =
+  helix <|
+    { tagger = Self
+    , auth = auth
+    , url = (fetchSelfUrl name)
+    , decoder = Twitch.Deserialize.users
+    }
 
 fetchUsersUrl : List String -> String
 fetchUsersUrl users =
   "https://api.twitch.tv/helix/users?id=" ++ (String.join "&id=" users)
 
-fetchUsers : List String -> Cmd Msg
-fetchUsers users =
+fetchUsers : Maybe String -> List String -> Cmd Msg
+fetchUsers auth users =
   if List.isEmpty users then
     Cmd.none
   else
-    helix Users (fetchUsersUrl users) Twitch.Deserialize.users
+    helix <|
+      { tagger = Users
+      , auth = auth
+      , url = (fetchUsersUrl users)
+      , decoder = Twitch.Deserialize.users
+      }
 
 fetchFollowsUrl : List String -> String
 fetchFollowsUrl userIds =
   "https://api.twitch.tv/helix/users/follows?first=100&from_id=" ++ (String.join "&from_id=" userIds)
 
-fetchFollows : List String -> Cmd Msg
-fetchFollows userIds =
+fetchFollows : Maybe String -> List String -> Cmd Msg
+fetchFollows auth userIds =
   if List.isEmpty userIds then
     Cmd.none
   else
-    helix Follows (fetchFollowsUrl userIds) Twitch.Deserialize.follows
+    helix <|
+      { tagger = Follows
+      , auth = auth
+      , url = (fetchFollowsUrl userIds)
+      , decoder = Twitch.Deserialize.follows
+      }
 
 fetchVideosUrl : String -> String
 fetchVideosUrl userId =
   "https://api.twitch.tv/helix/videos?first=3&period=week&user_id=" ++ userId
 
-fetchVideos : String -> Cmd Msg
-fetchVideos userId =
-  helix Videos (fetchVideosUrl userId) Twitch.Deserialize.videos
+fetchVideos : Maybe String -> String -> Cmd Msg
+fetchVideos auth userId =
+  helix <|
+    { tagger = Videos
+    , auth = auth
+    , url = (fetchVideosUrl userId)
+    , decoder = Twitch.Deserialize.videos
+    }
 
-helix : ((Result Http.Error a) -> Msg) -> String -> Json.Decode.Decoder a -> Cmd Msg
-helix tagger url decoder =
+helix :
+  { tagger : ((Result Http.Error a) -> Msg)
+  , auth : Maybe String
+  , url : String
+  , decoder : Json.Decode.Decoder a
+  } -> Cmd Msg
+helix {tagger, auth, url, decoder} =
   Http.send tagger <| Http.request
     { method = "GET"
     , headers =
-      [ Http.header "Client-ID" Twitch.Id.clientId
-      ]
+      List.append
+        [ Http.header "Client-ID" Twitch.Id.clientId
+        ] (authHeaders auth)
     , url = url
     , body = Http.emptyBody
     , expect = Http.expectJson decoder
     , timeout = Nothing
     , withCredentials = False
     }
+
+authHeaders : Maybe String -> List Http.Header
+authHeaders auth =
+  case auth of
+    Just token -> 
+      [ Http.header "Authorization" ("Bearer "++token) ]
+    Nothing ->
+      []
+
+extractAccessToken : Location -> Maybe String
+extractAccessToken location =
+  String.split "&" location.hash
+    |> List.head
+    |> Maybe.map (String.split "=")
+    |> Maybe.andThen List.tail
+    |> Maybe.andThen List.head
