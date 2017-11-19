@@ -85,5 +85,6 @@ authorizeUrl redirectUri =
   "https://api.twitch.tv/kraken/oauth2/authorize"
     ++ "?client_id=" ++ Twitch.Id.clientId
     ++ "&redirect_uri=" ++ redirectUri
-    ++ "&response_type=token"
+    ++ "&response_type=token+id_token"
+    ++ "&scope=openid"
     -- ++ "&state=" ++ some random value
