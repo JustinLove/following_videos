@@ -1,4 +1,4 @@
-import Twitch.Deserialize exposing (User, Follow, Video)
+import Twitch.Deserialize exposing (Token, User, Follow, Video)
 import Twitch.Id
 import View
 
@@ -7,6 +7,7 @@ import Navigation exposing (Location)
 import Http
 import Time
 import Json.Decode
+import Jwt
 
 requestLimit = 100
 rateLimit = 30
@@ -48,11 +49,12 @@ init location =
   let
     auth = extractHashArgument "access_token" location
     token = Debug.log "token" <| extractHashArgument "id_token" location
+    payload = Maybe.andThen (Result.toMaybe << Debug.log "value" << Jwt.decodeToken Twitch.Deserialize.token) token
   in
   ( { location = location
     , auth = auth
     , token = token
-    , self = User "-" "-"
+    , self = User (payload |> Maybe.map .sub |> Maybe.withDefault "-") "-"
     , follows = []
     , users = []
     , videos = []

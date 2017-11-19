@@ -1,9 +1,11 @@
 module Twitch.Deserialize exposing
-  ( User
+  ( Token
+  , User
   , LiveStream
   , Game
   , Follow
   , Video
+  , token
   , users
   , liveStreams
   , games
@@ -12,6 +14,25 @@ module Twitch.Deserialize exposing
   )
 
 import Json.Decode exposing (..)
+
+{- sub = "12345678", iss = "https://api.twitch.tv/api", aud = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", exp = 1511110246, iat = 1511109346 -}
+
+type alias Token =
+  { sub : String
+  , iss : String
+  , aud : String
+  , exp : Int
+  , iat : Int
+  }
+
+token : Decoder Token
+token =
+  map5 Token
+    (field "sub" string)
+    (field "iss" string)
+    (field "aud" string)
+    (field "exp" int)
+    (field "iat" int)
 
 {-"data":[{
    "id":"44322889",

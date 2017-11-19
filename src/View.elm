@@ -37,7 +37,7 @@ view model =
 
 displayHeader model =
   header []
-    [ span [ class "user" ] [ text model.self.displayName ]
+    [ span [ class "user", title model.self.id ] [ text model.self.displayName ]
     , text " following "
     , span [ class "follows" ] [ text <| toString <| List.length model.follows ]
     , text " "
