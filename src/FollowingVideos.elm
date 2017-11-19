@@ -48,8 +48,8 @@ init : Location -> (Model, Cmd Msg)
 init location =
   let
     auth = extractHashArgument "access_token" location
-    token = Debug.log "token" <| extractHashArgument "id_token" location
-    payload = Maybe.andThen (Result.toMaybe << Debug.log "value" << Jwt.decodeToken Twitch.Deserialize.token) token
+    token = extractHashArgument "id_token" location
+    payload = Maybe.andThen (Result.toMaybe << Jwt.decodeToken Twitch.Deserialize.token) token
   in
   ( { location = location
     , auth = auth

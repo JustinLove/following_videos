@@ -75,9 +75,13 @@ displayNameFor users userId =
 displayLogin model =
   case model.auth of
     Just _ ->
-      span [ class "user", title model.self.id ] [ text model.self.displayName ]
+      span []
+        [ span [ class "user", title model.self.id ] [ text model.self.displayName ]
+        , text " "
+        , a [ href (model.location.origin ++ model.location.pathname) ] [ text "logout" ]
+        ]
     Nothing ->
-      a [ href (authorizeUrl "http://localhost:8000/src/FollowingVideos.elm") ] [ text "login" ]
+      a [ href (authorizeUrl model.location.href) ] [ text "login" ]
 
 authorizeUrl : String -> String
 authorizeUrl redirectUri =
