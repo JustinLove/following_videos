@@ -12,7 +12,7 @@ import Jwt
 requestLimit = 100
 rateLimit = 30
 authRateLimit = 120
-videoLimit = 3 --requestLimit
+videoLimit = requestLimit
 
 type Msg
   = Self (Result Http.Error (List User))
@@ -60,7 +60,11 @@ init location =
     , videos = []
     , pendingUsers = []
     , pendingVideos = []
-    , pendingRequests = [fetchSelf auth Twitch.Id.userName]
+    , pendingRequests = case Maybe.map .sub payload of
+      Just userId ->
+        [ fetchSelf auth userId ]
+      Nothing ->
+        []
     , outstandingRequests = 0
     }
   , Cmd.none
@@ -155,15 +159,15 @@ fetchNextUserBatch batch model =
   }
 
 fetchSelfUrl : String -> String
-fetchSelfUrl name =
-  "https://api.twitch.tv/helix/users?login=" ++ name
+fetchSelfUrl userId =
+  "https://api.twitch.tv/helix/users?id=" ++ userId
 
 fetchSelf : Maybe String -> String -> Cmd Msg
-fetchSelf auth name =
+fetchSelf auth userId =
   helix <|
     { tagger = Self
     , auth = auth
-    , url = (fetchSelfUrl name)
+    , url = (fetchSelfUrl userId)
     , decoder = Twitch.Deserialize.users
     }
 

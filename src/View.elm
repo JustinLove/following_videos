@@ -37,7 +37,7 @@ view model =
 
 displayHeader model =
   header []
-    [ span [ class "user", title model.self.id ] [ text model.self.displayName ]
+    [ displayLogin model
     , text " following "
     , span [ class "follows" ] [ text <| toString <| List.length model.follows ]
     , text " "
@@ -48,7 +48,6 @@ displayHeader model =
     , text " "
     , span [ class "pending" ] [ text <| toString <| List.length model.pendingRequests ]
     , text " "
-    , displayLogin model
     ]
 
 videoView model video =
@@ -76,7 +75,7 @@ displayNameFor users userId =
 displayLogin model =
   case model.auth of
     Just _ ->
-      text ""
+      span [ class "user", title model.self.id ] [ text model.self.displayName ]
     Nothing ->
       a [ href (authorizeUrl "http://localhost:8000/src/FollowingVideos.elm") ] [ text "login" ]
 
