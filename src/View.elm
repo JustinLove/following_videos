@@ -48,7 +48,7 @@ displayHeader model =
     , text " "
     , span [ class "pending" ] [ text <| toString <| List.length model.pendingRequests ]
     , text " "
-    , a [ href (authorizeUrl "http://localhost:8000/src/FollowingVideos.elm") ] [ text "login" ]
+    , displayLogin model
     ]
 
 videoView model video =
@@ -72,6 +72,13 @@ displayNameFor users userId =
   List.filterMap (\u -> if u.id == userId then Just u.displayName else Nothing) users
    |> List.head
    |> Maybe.withDefault "unknown"
+
+displayLogin model =
+  case model.auth of
+    Just _ ->
+      text ""
+    Nothing ->
+      a [ href (authorizeUrl "http://localhost:8000/src/FollowingVideos.elm") ] [ text "login" ]
 
 authorizeUrl : String -> String
 authorizeUrl redirectUri =

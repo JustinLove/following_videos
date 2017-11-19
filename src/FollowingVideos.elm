@@ -11,7 +11,7 @@ import Json.Decode
 requestLimit = 100
 rateLimit = 30
 authRateLimit = 120
-videoLimit = requestLimit
+videoLimit = 3 --requestLimit
 
 type Msg
   = Self (Result Http.Error (List User))
@@ -44,7 +44,7 @@ main = Navigation.program CurrentUrl
 
 init : Location -> (Model, Cmd Msg)
 init location =
-  let auth = extractAccessToken location in
+  let auth = extractHashArgument "access_token" location in
   ( { location = location
     , auth = auth
     , self = User "-" "-"
@@ -233,10 +233,17 @@ authHeaders auth =
     Nothing ->
       []
 
-extractAccessToken : Location -> Maybe String
-extractAccessToken location =
-  String.split "&" location.hash
+extractHashArgument : String -> Location -> Maybe String
+extractHashArgument key location =
+  location.hash
+    |> String.dropLeft 1
+    |> String.split "&"
+    |> List.map (String.split "=")
+    |> List.filter (\x -> case List.head x of
+      Just s ->
+        s == key
+      Nothing ->
+        False)
     |> List.head
-    |> Maybe.map (String.split "=")
     |> Maybe.andThen List.tail
     |> Maybe.andThen List.head
