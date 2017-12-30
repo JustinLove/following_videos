@@ -7,6 +7,8 @@ import Navigation exposing (Location)
 import Http
 import Time
 import Json.Decode
+import Uuid exposing (Uuid)
+import Random.Pcg as Random
 
 requestLimit = 100
 rateLimit = 30
@@ -19,11 +21,13 @@ type Msg
   | Users (Result Http.Error (List User))
   | Videos (Result Http.Error (List Video))
   | NextRequest Time.Time
+  | AuthState Uuid
   | CurrentUrl Location
   | UI (View.Msg)
 
 type alias Model =
   { location : Location
+  , authState : Maybe Uuid
   , auth : Maybe String
   , self : User
   , follows : List Follow
@@ -44,8 +48,13 @@ main = Navigation.program CurrentUrl
 
 init : Location -> (Model, Cmd Msg)
 init location =
-  let auth = extractHashArgument "access_token" location in
+  let
+    auth = extractHashArgument "access_token" location
+    state = extractHashArgument "state" location
+      |> Maybe.andThen Uuid.fromString
+  in
   ( { location = location
+    , authState = Nothing
     , auth = auth
     , self = User "-" "-"
     , follows = []
@@ -60,7 +69,7 @@ init location =
         []
     , outstandingRequests = 0
     }
-  , Cmd.none
+  , Random.generate AuthState Uuid.uuidGenerator
   )
 
 update: Msg -> Model -> (Model, Cmd Msg)
@@ -125,6 +134,8 @@ update msg model =
             , outstandingRequests = model.outstandingRequests + (if next == Cmd.none then 0 else 1)
             }, next)
         _ -> (model, Cmd.none)
+    AuthState uuid ->
+      ({model | authState = Just uuid }, Cmd.none)
     UI (View.None) ->
       (model, Cmd.none)
 
