@@ -7,6 +7,7 @@ import Twitch.Id
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events
+import Html.Keyed as Keyed
 
 type Msg
   = None
@@ -29,7 +30,7 @@ view model =
   div []
     [ node "style" [] [ text css ]
     , displayHeader model
-    , ul [ id "videos" ]
+    , Keyed.ul [ id "videos" ]
       <| List.map (videoView model)
       <| List.reverse
       <| List.sortBy .publishedAt model.videos
@@ -54,7 +55,8 @@ videoView model video =
   let
     name = displayNameFor model.users video.userId
   in
-  li [ class "video" ]
+  ( video.id
+  , li [ class "video" ]
     [ a [ href ("https://twitch.tv/videos/"++video.id) ] [ img [ class "preview", src (imagePercentTemplateUrl 320 180 video.thumbnailUrl), width 239, height 134 ] [] ]
     , div [ class "info" ]
       [ div [ class "info-text" ]
@@ -65,6 +67,7 @@ videoView model video =
         ]
       ]
     ]
+  )
 
 displayNameFor : List User -> String -> String
 displayNameFor users userId =
