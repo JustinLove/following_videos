@@ -25,7 +25,6 @@ type Msg
 type alias Model =
   { location : Location
   , auth : Maybe String
-  , token : Maybe String
   , self : User
   , follows : List Follow
   , users : List User
@@ -45,13 +44,9 @@ main = Navigation.program CurrentUrl
 
 init : Location -> (Model, Cmd Msg)
 init location =
-  let
-    auth = extractHashArgument "access_token" location
-    token = extractHashArgument "id_token" location
-  in
+  let auth = extractHashArgument "access_token" location in
   ( { location = location
     , auth = auth
-    , token = token
     , self = User "-" "-"
     , follows = []
     , users = []
