@@ -1,4 +1,4 @@
-import Twitch.Deserialize exposing (Token, User, Follow, Video)
+import Twitch.Deserialize exposing (User, Follow, Video)
 import Twitch.Id
 import View
 
@@ -7,7 +7,6 @@ import Navigation exposing (Location)
 import Http
 import Time
 import Json.Decode
-import Jwt
 
 requestLimit = 100
 rateLimit = 30
@@ -49,20 +48,19 @@ init location =
   let
     auth = extractHashArgument "access_token" location
     token = extractHashArgument "id_token" location
-    payload = Maybe.andThen (Result.toMaybe << Jwt.decodeToken Twitch.Deserialize.token) token
   in
   ( { location = location
     , auth = auth
     , token = token
-    , self = User (payload |> Maybe.map .sub |> Maybe.withDefault "-") "-"
+    , self = User "-" "-"
     , follows = []
     , users = []
     , videos = []
     , pendingUsers = []
     , pendingVideos = []
-    , pendingRequests = case Maybe.map .sub payload of
-      Just userId ->
-        [ fetchSelf auth userId ]
+    , pendingRequests = case auth of
+      Just _ ->
+        [ fetchSelf auth ]
       Nothing ->
         []
     , outstandingRequests = 0
@@ -158,16 +156,16 @@ fetchNextUserBatch batch model =
     [fetchUsers model.auth <| List.take batch model.pendingUsers]
   }
 
-fetchSelfUrl : String -> String
-fetchSelfUrl userId =
-  "https://api.twitch.tv/helix/users?id=" ++ userId
+fetchSelfUrl : String
+fetchSelfUrl =
+  "https://api.twitch.tv/helix/users"
 
-fetchSelf : Maybe String -> String -> Cmd Msg
-fetchSelf auth userId =
+fetchSelf : Maybe String -> Cmd Msg
+fetchSelf auth =
   helix <|
     { tagger = Self
     , auth = auth
-    , url = (fetchSelfUrl userId)
+    , url = fetchSelfUrl
     , decoder = Twitch.Deserialize.users
     }
 
