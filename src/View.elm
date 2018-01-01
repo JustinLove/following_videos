@@ -87,7 +87,7 @@ displayLogin model =
         , a [ href (model.location.origin ++ model.location.pathname) ] [ text "logout" ]
         ]
     Nothing ->
-      a [ href (authorizeUrl (urlWithoutHash model.location) model.requestState) ] [ text "login" ]
+      a [ href (authorizeUrl (urlForRedirect model.location) model.requestState) ] [ text "login" ]
 
 authorizeUrl : String -> Maybe Uuid -> String
 authorizeUrl redirectUri authState =
@@ -99,6 +99,8 @@ authorizeUrl redirectUri authState =
       Just uuid -> "&state=" ++ (Uuid.toString uuid)
       Nothing -> "")
 
-urlWithoutHash : Location -> String
-urlWithoutHash location =
-  String.dropRight (String.length location.hash) location.href
+urlForRedirect : Location -> String
+urlForRedirect location =
+  location.href
+    |> String.dropRight (String.length location.hash)
+    |> String.dropRight (String.length location.search)
