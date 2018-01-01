@@ -8,6 +8,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events
 import Html.Keyed as Keyed
+import Http
+import Navigation exposing (Location)
 import Uuid exposing (Uuid)
 
 type Msg
@@ -85,14 +87,18 @@ displayLogin model =
         , a [ href (model.location.origin ++ model.location.pathname) ] [ text "logout" ]
         ]
     Nothing ->
-      a [ href (authorizeUrl model.location.href model.requestState) ] [ text "login" ]
+      a [ href (authorizeUrl (urlWithoutHash model.location) model.requestState) ] [ text "login" ]
 
 authorizeUrl : String -> Maybe Uuid -> String
 authorizeUrl redirectUri authState =
   "https://api.twitch.tv/kraken/oauth2/authorize"
     ++ "?client_id=" ++ Twitch.Id.clientId
-    ++ "&redirect_uri=" ++ redirectUri
+    ++ "&redirect_uri=" ++ (Http.encodeUri redirectUri)
     ++ "&response_type=token"
     ++ (case authState of
       Just uuid -> "&state=" ++ (Uuid.toString uuid)
       Nothing -> "")
+
+urlWithoutHash : Location -> String
+urlWithoutHash location =
+  String.dropRight (String.length location.hash) location.href
