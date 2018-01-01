@@ -16,6 +16,7 @@ import Json.Decode
 import Json.Encode
 import Uuid exposing (Uuid)
 import Random.Pcg as Random
+import Set exposing (Set)
 
 requestLimit = 100
 rateLimit = 30
@@ -42,6 +43,7 @@ type alias Model =
   , follows : List Follow
   , users : List User
   , videos : List Video
+  , pendingUsers : List String
   , pendingVideos : List String
   , pendingRequests : List (Cmd Msg)
   , outstandingRequests : Int
@@ -69,6 +71,7 @@ init location =
     , follows = []
     , users = []
     , videos = []
+    , pendingUsers = []
     , pendingVideos = []
     , pendingRequests = []
     , outstandingRequests = 0
@@ -109,10 +112,12 @@ update msg model =
       (
         { model
         | follows = List.append model.follows follows
+        , pendingUsers = missingUsers userIds model
         , pendingVideos = List.append model.pendingVideos userIds
         , pendingRequests = List.append model.pendingRequests
-          ((fetchUsers model.auth userIds) :: (List.take videoLimit <| List.map (fetchVideos model.auth) userIds))
+          (List.take videoLimit <| List.map (fetchVideos model.auth) userIds)
         }
+        |> fetchNextUserBatch requestLimit
       , Cmd.none
       )
     Follows (Err error) ->
@@ -122,6 +127,7 @@ update msg model =
       { model
       | users = List.append model.users users
       }
+      |> fetchNextUserBatch requestLimit
       |> persist
     Users (Err error) ->
       let _ = Debug.log "user fetch error" error in
@@ -166,6 +172,22 @@ resolveLoaded state model =
     | users = state.users
     , auth = Nothing
     }
+
+missingUsers : List String -> Model -> List String
+missingUsers userIds model =
+  let
+    known = Set.fromList <| List.map (.id >> String.toLower) model.users
+  in
+    Set.toList <| Set.diff (Set.fromList userIds) known
+
+fetchNextUserBatch : Int -> Model -> Model
+fetchNextUserBatch batch model =
+  { model
+  | pendingUsers = List.drop batch model.pendingUsers
+  , pendingRequests = List.append
+      [fetchUsers model.auth <| List.take batch model.pendingUsers]
+      model.pendingRequests
+  }
 
 persist : Model -> (Model, Cmd Msg)
 persist model =
