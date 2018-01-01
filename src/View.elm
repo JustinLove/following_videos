@@ -26,6 +26,8 @@ header { padding-left: 40px; }
 .info { display: flex; overflow-x: hidden; }
 .game-image { flex-shrink: 0; margin-right: 0.5em; }
 .info-text p { margin: 0.2em; font-size: 0.8em; white-space: nowrap; }
+a:link, a:visited { color: #b19dd8; }
+a:hover, a:active { color: rgb(218, 216, 222); }
 """
 
 --view : Model -> Html Msg
