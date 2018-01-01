@@ -1,12 +1,19 @@
+module FollowingVideos exposing (..)
+
+import Persist exposing (Persist)
+import Persist.Encode
+import Persist.Decode
 import Twitch.Deserialize exposing (User, Follow, Video)
 import Twitch.Id
 import View
+import Harbor
 
 import Html
 import Navigation exposing (Location)
 import Http
 import Time
 import Json.Decode
+import Json.Encode
 import Uuid exposing (Uuid)
 import Random.Pcg as Random
 
@@ -16,13 +23,14 @@ authRateLimit = 120
 videoLimit = requestLimit
 
 type Msg
-  = Self (Result Http.Error (List User))
+  = Loaded (Maybe Persist)
+  | CurrentUrl Location
+  | Self (Result Http.Error (List User))
   | Follows (Result Http.Error (List Follow))
   | Users (Result Http.Error (List User))
   | Videos (Result Http.Error (List Video))
   | NextRequest Time.Time
   | AuthState Uuid
-  | CurrentUrl Location
   | UI (View.Msg)
 
 type alias Model =
@@ -33,7 +41,6 @@ type alias Model =
   , follows : List Follow
   , users : List User
   , videos : List Video
-  , pendingUsers : List String
   , pendingVideos : List String
   , pendingRequests : List (Cmd Msg)
   , outstandingRequests : Int
@@ -60,7 +67,6 @@ init location =
     , follows = []
     , users = []
     , videos = []
-    , pendingUsers = []
     , pendingVideos = []
     , pendingRequests = case auth of
       Just _ ->
@@ -75,6 +81,17 @@ init location =
 update: Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    Loaded mstate ->
+      ( ( case mstate of
+          Just state ->
+            { model
+            | users = state.users
+            , authState = state.authState
+            }
+          Nothing ->
+            model
+        )
+      , Cmd.none)
     CurrentUrl location ->
       ( { model | location = location }, Cmd.none)
     Self (Ok (user::_)) ->
@@ -106,14 +123,10 @@ update msg model =
       let _ = Debug.log "follow fetch error" error in
       (model, Cmd.none)
     Users (Ok users) ->
-      (fetchNextUserBatch requestLimit
-        { model
-        | users = List.append model.users users
-        , pendingRequests = List.append model.pendingRequests
-          []
-        }
-      , Cmd.none
-      )
+      { model
+      | users = List.append model.users users
+      }
+      |> persist
     Users (Err error) ->
       let _ = Debug.log "user fetch error" error in
       (model, Cmd.none)
@@ -135,16 +148,42 @@ update msg model =
             }, next)
         _ -> (model, Cmd.none)
     AuthState uuid ->
-      ({model | authState = Just uuid }, Cmd.none)
+      {model | authState = Just uuid }
+        |> persist
     UI (View.None) ->
       (model, Cmd.none)
 
+persist : Model -> (Model, Cmd Msg)
+persist model =
+  (model, saveModel model)
+
+saveModel : Model -> Cmd Msg
+saveModel model =
+  Persist model.users model.authState
+    |> Persist.Encode.persist
+    |> Json.Encode.encode 0
+    |> Harbor.save
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  if List.isEmpty model.pendingRequests then
-    Sub.none
-  else
-    Time.every ((requestRate model.auth)*1.05) NextRequest
+  Sub.batch
+    [ if List.isEmpty model.pendingRequests then
+        Sub.none
+      else
+        Time.every ((requestRate model.auth)*1.05) NextRequest
+    , Harbor.loaded receiveLoaded
+    ]
+
+receiveLoaded : Maybe String -> Msg
+receiveLoaded mstring =
+  mstring
+    |> Maybe.andThen (\string ->
+      string
+       |> Json.Decode.decodeString Persist.Decode.persist
+       |> Result.mapError (Debug.log "persist decode error")
+       |> Result.toMaybe
+      )
+    |> Loaded
 
 requestRate : Maybe String -> Float
 requestRate auth =
@@ -153,14 +192,6 @@ requestRate auth =
       (60*Time.second/authRateLimit)
     Nothing ->
       (60*Time.second/rateLimit)
-
-fetchNextUserBatch : Int -> Model -> Model
-fetchNextUserBatch batch model =
-  { model
-  | pendingUsers = List.drop batch model.pendingUsers
-  , pendingRequests = List.append model.pendingRequests
-    [fetchUsers model.auth <| List.take batch model.pendingUsers]
-  }
 
 fetchSelfUrl : String
 fetchSelfUrl =
