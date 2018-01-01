@@ -35,7 +35,8 @@ type Msg
 
 type alias Model =
   { location : Location
-  , authState : Maybe Uuid
+  , responseState : Maybe Uuid
+  , requestState : Maybe Uuid
   , auth : Maybe String
   , self : User
   , follows : List Follow
@@ -61,7 +62,8 @@ init location =
       |> Maybe.andThen Uuid.fromString
   in
   ( { location = location
-    , authState = state
+    , responseState = state
+    , requestState = Nothing
     , auth = auth
     , self = User "-" "-"
     , follows = []
@@ -71,7 +73,7 @@ init location =
     , pendingRequests = []
     , outstandingRequests = 0
     }
-  , Cmd.none
+  , Random.generate AuthState Uuid.uuidGenerator
   )
 
 update: Msg -> Model -> (Model, Cmd Msg)
@@ -84,7 +86,7 @@ update msg model =
           Nothing ->
             model
         )
-      , Random.generate AuthState Uuid.uuidGenerator
+      , Cmd.none
       )
     CurrentUrl location ->
       ( { model | location = location }, Cmd.none)
@@ -142,17 +144,16 @@ update msg model =
             }, next)
         _ -> (model, Cmd.none)
     AuthState uuid ->
-      {model | authState = Just uuid }
+      {model | requestState = Just uuid }
         |> persist
     UI (View.None) ->
       (model, Cmd.none)
 
 resolveLoaded : Persist -> Model -> Model
 resolveLoaded state model =
-  if model.authState == state.authState then
+  if model.responseState == state.authState then
     { model
     | users = state.users
-    , authState = Nothing
     , pendingRequests = case model.auth of
       Just _ ->
         [ fetchSelf model.auth ]
@@ -160,10 +161,9 @@ resolveLoaded state model =
         []
     }
   else
-    let _ = Debug.log "auth state mismatch" [model.authState, state.authState] in
+    let _ = Debug.log "auth state mismatch" [model.responseState, state.authState] in
     { model
     | users = state.users
-    , authState = Nothing
     , auth = Nothing
     }
 
@@ -173,7 +173,7 @@ persist model =
 
 saveModel : Model -> Cmd Msg
 saveModel model =
-  Persist model.users model.authState
+  Persist model.users model.requestState
     |> Persist.Encode.persist
     |> Json.Encode.encode 0
     |> Harbor.save

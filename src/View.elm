@@ -85,7 +85,7 @@ displayLogin model =
         , a [ href (model.location.origin ++ model.location.pathname) ] [ text "logout" ]
         ]
     Nothing ->
-      a [ href (authorizeUrl model.location.href model.authState) ] [ text "login" ]
+      a [ href (authorizeUrl model.location.href model.requestState) ] [ text "login" ]
 
 authorizeUrl : String -> Maybe Uuid -> String
 authorizeUrl redirectUri authState =
