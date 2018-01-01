@@ -61,21 +61,17 @@ init location =
       |> Maybe.andThen Uuid.fromString
   in
   ( { location = location
-    , authState = Nothing
+    , authState = state
     , auth = auth
     , self = User "-" "-"
     , follows = []
     , users = []
     , videos = []
     , pendingVideos = []
-    , pendingRequests = case auth of
-      Just _ ->
-        [ fetchSelf auth ]
-      Nothing ->
-        []
+    , pendingRequests = []
     , outstandingRequests = 0
     }
-  , Random.generate AuthState Uuid.uuidGenerator
+  , Cmd.none
   )
 
 update: Msg -> Model -> (Model, Cmd Msg)
@@ -84,14 +80,12 @@ update msg model =
     Loaded mstate ->
       ( ( case mstate of
           Just state ->
-            { model
-            | users = state.users
-            , authState = state.authState
-            }
+            resolveLoaded state model
           Nothing ->
             model
         )
-      , Cmd.none)
+      , Random.generate AuthState Uuid.uuidGenerator
+      )
     CurrentUrl location ->
       ( { model | location = location }, Cmd.none)
     Self (Ok (user::_)) ->
@@ -152,6 +146,26 @@ update msg model =
         |> persist
     UI (View.None) ->
       (model, Cmd.none)
+
+resolveLoaded : Persist -> Model -> Model
+resolveLoaded state model =
+  if model.authState == state.authState then
+    { model
+    | users = state.users
+    , authState = Nothing
+    , pendingRequests = case model.auth of
+      Just _ ->
+        [ fetchSelf model.auth ]
+      Nothing ->
+        []
+    }
+  else
+    let _ = Debug.log "auth state mismatch" [model.authState, state.authState] in
+    { model
+    | users = state.users
+    , authState = Nothing
+    , auth = Nothing
+    }
 
 persist : Model -> (Model, Cmd Msg)
 persist model =
