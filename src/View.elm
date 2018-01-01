@@ -6,14 +6,14 @@ import Twitch.Id
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events
+import Html.Events exposing (onClick)
 import Html.Keyed as Keyed
 import Http
 import Navigation exposing (Location)
 import Uuid exposing (Uuid)
 
 type Msg
-  = None
+  = Refresh
 
 css = """
 body {
@@ -85,6 +85,8 @@ displayLogin model =
         [ span [ class "user", title model.self.id ] [ text model.self.displayName ]
         , text " "
         , a [ href (model.location.origin ++ model.location.pathname) ] [ text "logout" ]
+        , text " "
+        , button [onClick Refresh] [ text "Refresh" ]
         ]
     Nothing ->
       a [ href (authorizeUrl (urlForRedirect model.location) model.requestState) ] [ text "login" ]

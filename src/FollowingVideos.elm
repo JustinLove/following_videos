@@ -44,7 +44,6 @@ type alias Model =
   , users : List User
   , videos : List Video
   , pendingUsers : List String
-  , pendingVideos : List String
   , pendingRequests : List (Cmd Msg)
   , outstandingRequests : Int
   }
@@ -72,7 +71,6 @@ init location =
     , users = []
     , videos = []
     , pendingUsers = []
-    , pendingVideos = []
     , pendingRequests = []
     , outstandingRequests = 0
     }
@@ -113,7 +111,6 @@ update msg model =
         { model
         | follows = List.append model.follows follows
         , pendingUsers = missingUsers userIds model
-        , pendingVideos = List.append model.pendingVideos userIds
         , pendingRequests = List.append model.pendingRequests
           (List.take videoLimit <| List.map (fetchVideos model.auth) userIds)
         }
@@ -152,8 +149,17 @@ update msg model =
     AuthState uuid ->
       {model | requestState = Just uuid }
         |> persist
-    UI (View.None) ->
-      (model, Cmd.none)
+    UI (View.Refresh) ->
+      ( { model
+        | videos = []
+        , pendingRequests = List.append model.pendingRequests
+          (model.users
+            |> List.map .id
+            |> List.map (fetchVideos model.auth)
+            |> List.take videoLimit
+          )
+        }
+      , Cmd.none)
 
 resolveLoaded : Persist -> Model -> Model
 resolveLoaded state model =
