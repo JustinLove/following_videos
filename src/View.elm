@@ -8,6 +8,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Html.Keyed as Keyed
+import Svg exposing (svg, use)
+import Svg.Attributes exposing (xlinkHref)
 import Http
 import Navigation exposing (Location)
 import Uuid exposing (Uuid)
@@ -21,6 +23,18 @@ body {
   color: rgb(218, 216, 222);
 }
 header { padding-left: 40px; }
+svg.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.2em;
+  stroke-width: 0;
+  stroke: currentColor;
+  fill: currentColor;
+}
+.icon-github { color: #888; }
+.icon-twitter { color: #55acee; }
+.icon-twitch { color: #6441A4; }
 #videos { display: flex; flex-wrap: wrap; list-style-type: none;}
 .video { width: 240px; height: 200px; padding: 10px; }
 .info { display: flex; overflow-x: hidden; }
@@ -39,6 +53,16 @@ view model =
       <| List.map (videoView model)
       <| List.reverse
       <| List.sortBy .publishedAt model.videos
+    , footer []
+      [ a [ href "https://github.com/JustinLove/following_videos" ]
+        [ icon "github", text "following_videos" ]
+      , text " "
+      , a [ href "https://twitter.com/wondible" ]
+        [ icon "twitter", text "@wondible" ]
+      , text " "
+      , a [ href "https://twitch.tv/wondible" ]
+        [ icon "twitch", text "wondible" ]
+      ]
     ]
 
 displayHeader model =
@@ -108,3 +132,8 @@ urlForRedirect location =
   location.href
     |> String.dropRight (String.length location.hash)
     |> String.dropRight (String.length location.search)
+
+icon : String -> Html Msg
+icon name =
+  svg [ Svg.Attributes.class ("icon icon-"++name) ]
+    [ use [ xlinkHref ("#icon-"++name) ] [] ]

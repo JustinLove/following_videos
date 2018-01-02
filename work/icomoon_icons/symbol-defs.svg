@@ -1,14 +1,3 @@
-<!DOCTYPE HTML>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <title>Following Videos</title>
-  <!--link href="style.css" rel="stylesheet" /-->
-  <script type="text/javascript" src="following_videos.js"></script>
-</head>
-
-<body>
 <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <defs>
 <symbol id="icon-twitter" viewBox="0 0 32 32">
@@ -27,21 +16,3 @@
 </symbol>
 </defs>
 </svg>
-
-</body>
-
-<script type="text/javascript">
-  var app = Elm.FollowingVideos.fullscreen()
-
-  var key = 'following-videos'
-
-  app.ports.save.subscribe(function(value) {
-    localStorage.setItem(key, value)
-  })
-
-  var loaded = localStorage.getItem(key)
-  app.ports.loaded.send(loaded)
-</script>
-
-</html>
-
