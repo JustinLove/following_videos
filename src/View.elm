@@ -2,7 +2,7 @@ module View exposing (Msg(..), view)
 
 import Twitch.Deserialize exposing (User)
 import Twitch.Template exposing (imagePercentTemplateUrl)
-import Twitch.Id
+import TwitchId
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -120,7 +120,7 @@ displayLogin model =
 authorizeUrl : String -> Maybe Uuid -> String
 authorizeUrl redirectUri authState =
   "https://api.twitch.tv/kraken/oauth2/authorize"
-    ++ "?client_id=" ++ Twitch.Id.clientId
+    ++ "?client_id=" ++ TwitchId.clientId
     ++ "&redirect_uri=" ++ (Http.encodeUri redirectUri)
     ++ "&response_type=token"
     ++ (case authState of

@@ -4,7 +4,7 @@ import Persist exposing (Persist)
 import Persist.Encode
 import Persist.Decode
 import Twitch.Deserialize exposing (User, Follow, Video)
-import Twitch.Id
+import TwitchId
 import View
 import Harbor
 
@@ -242,7 +242,7 @@ fetchSelfUrl =
 fetchSelf : Maybe String -> Cmd Msg
 fetchSelf auth =
   helix <|
-    { clientId = Twitch.Id.clientId
+    { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Twitch.Deserialize.users
     , tagger = Self
@@ -259,7 +259,7 @@ fetchUsers auth users =
     Cmd.none
   else
     helix <|
-      { clientId = Twitch.Id.clientId
+      { clientId = TwitchId.clientId
       , auth = auth
       , decoder = Twitch.Deserialize.users
       , tagger = Users
@@ -276,7 +276,7 @@ fetchFollows auth userIds =
     Cmd.none
   else
     helix <|
-      { clientId = Twitch.Id.clientId
+      { clientId = TwitchId.clientId
       , auth = auth
       , decoder = Twitch.Deserialize.follows
       , tagger = Follows
@@ -290,7 +290,7 @@ fetchVideosUrl userId =
 fetchVideos : Maybe String -> String -> Cmd Msg
 fetchVideos auth userId =
   helix <|
-    { clientId = Twitch.Id.clientId
+    { clientId = TwitchId.clientId
     , auth = auth
     , decoder = Twitch.Deserialize.videos
     , tagger = Videos
