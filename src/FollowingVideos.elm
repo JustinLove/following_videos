@@ -242,10 +242,11 @@ fetchSelfUrl =
 fetchSelf : Maybe String -> Cmd Msg
 fetchSelf auth =
   helix <|
-    { tagger = Self
+    { clientId = Twitch.Id.clientId
     , auth = auth
-    , url = fetchSelfUrl
     , decoder = Twitch.Deserialize.users
+    , tagger = Self
+    , url = fetchSelfUrl
     }
 
 fetchUsersUrl : List String -> String
@@ -258,10 +259,11 @@ fetchUsers auth users =
     Cmd.none
   else
     helix <|
-      { tagger = Users
+      { clientId = Twitch.Id.clientId
       , auth = auth
-      , url = (fetchUsersUrl users)
       , decoder = Twitch.Deserialize.users
+      , tagger = Users
+      , url = (fetchUsersUrl users)
       }
 
 fetchFollowsUrl : List String -> String
@@ -274,10 +276,11 @@ fetchFollows auth userIds =
     Cmd.none
   else
     helix <|
-      { tagger = Follows
+      { clientId = Twitch.Id.clientId
       , auth = auth
-      , url = (fetchFollowsUrl userIds)
       , decoder = Twitch.Deserialize.follows
+      , tagger = Follows
+      , url = (fetchFollowsUrl userIds)
       }
 
 fetchVideosUrl : String -> String
@@ -287,31 +290,36 @@ fetchVideosUrl userId =
 fetchVideos : Maybe String -> String -> Cmd Msg
 fetchVideos auth userId =
   helix <|
-    { tagger = Videos
+    { clientId = Twitch.Id.clientId
     , auth = auth
-    , url = (fetchVideosUrl userId)
     , decoder = Twitch.Deserialize.videos
+    , tagger = Videos
+    , url = (fetchVideosUrl userId)
     }
 
 helix :
-  { tagger : ((Result Http.Error a) -> Msg)
+  { clientId : String
   , auth : Maybe String
-  , url : String
   , decoder : Json.Decode.Decoder a
+  , tagger : ((Result Http.Error a) -> Msg)
+  , url : String
   } -> Cmd Msg
-helix {tagger, auth, url, decoder} =
+helix {clientId, auth, decoder, tagger, url} =
   Http.send tagger <| Http.request
     { method = "GET"
-    , headers =
-      List.append
-        [ Http.header "Client-ID" Twitch.Id.clientId
-        ] (authHeaders auth)
+    , headers = twitchHeaders clientId auth
     , url = url
     , body = Http.emptyBody
     , expect = Http.expectJson decoder
     , timeout = Nothing
     , withCredentials = False
     }
+
+twitchHeaders : String -> Maybe String -> List Http.Header
+twitchHeaders clientId auth =
+  List.append
+    [ Http.header "Client-ID" clientId
+    ] (authHeaders auth)
 
 authHeaders : Maybe String -> List Http.Header
 authHeaders auth =
