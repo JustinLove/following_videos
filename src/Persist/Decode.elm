@@ -1,7 +1,6 @@
 module Persist.Decode exposing (persist, user)
 
-import Persist exposing (Persist)
-import Twitch.Deserialize exposing (User, Game)
+import Persist exposing (Persist, User)
 import Uuid exposing (Uuid)
 
 import Json.Decode exposing (..)

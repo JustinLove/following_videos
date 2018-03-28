@@ -1,9 +1,9 @@
 module FollowingVideos exposing (..)
 
-import Persist exposing (Persist)
+import Persist exposing (Persist, User)
 import Persist.Encode
 import Persist.Decode
-import Twitch.Deserialize exposing (User, Follow, Video)
+import Twitch.Deserialize exposing (Follow, Video)
 import Twitch exposing (helix)
 import TwitchId
 import View
@@ -27,9 +27,9 @@ videoLimit = requestLimit
 type Msg
   = Loaded (Maybe Persist)
   | CurrentUrl Location
-  | Self (Result Http.Error (List User))
+  | Self (Result Http.Error (List Twitch.Deserialize.User))
   | Follows (Result Http.Error (List Follow))
-  | Users (Result Http.Error (List User))
+  | Users (Result Http.Error (List Twitch.Deserialize.User))
   | Videos (Result Http.Error (List Video))
   | NextRequest Time.Time
   | AuthState Uuid
@@ -94,7 +94,7 @@ update msg model =
       ( { model | location = location }, Cmd.none)
     Self (Ok (user::_)) ->
       ( { model
-        | self = user
+        | self = importUser user
         , pendingRequests = List.append model.pendingRequests
           [fetchFollows model.auth [user.id]]
         }
@@ -123,7 +123,7 @@ update msg model =
       (model, Cmd.none)
     Users (Ok users) ->
       { model
-      | users = List.append model.users users
+      | users = List.append model.users <| List.map importUser users
       }
       |> fetchNextUserBatch requestLimit
       |> persist
@@ -235,6 +235,12 @@ requestRate auth =
       (60*Time.second/authRateLimit)
     Nothing ->
       (60*Time.second/rateLimit)
+
+importUser : Twitch.Deserialize.User -> User
+importUser user =
+  { id = user.id
+  , displayName = user.displayName
+  }
 
 fetchSelfUrl : String
 fetchSelfUrl =

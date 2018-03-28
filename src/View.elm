@@ -1,6 +1,6 @@
 module View exposing (Msg(..), view)
 
-import Twitch.Deserialize exposing (User)
+import Persist exposing (User)
 import Twitch.Template exposing (imagePercentTemplateUrl)
 import TwitchId
 

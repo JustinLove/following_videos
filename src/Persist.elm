@@ -1,9 +1,13 @@
-module Persist exposing (Persist)
+module Persist exposing (Persist, User)
 
-import Twitch.Deserialize exposing (User, Game)
 import Uuid exposing (Uuid)
 
 type alias Persist =
   { users : List User
   , authState : Maybe Uuid
+  }
+
+type alias User =
+  { id : String
+  , displayName : String
   }
