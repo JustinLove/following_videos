@@ -13,6 +13,8 @@ import Svg.Attributes exposing (xlinkHref)
 import Http
 import Navigation exposing (Location)
 import Uuid exposing (Uuid)
+import Date exposing (Month(..))
+import Time exposing (Time)
 
 type Msg
   = Refresh
@@ -92,7 +94,7 @@ videoView model video =
         [ p [ class "title", title video.title ] [ text video.title ]
         , br [] []
         , p [ class "name" ] [ text name ]
-        , p [ class "date" ] [ text video.publishedAt ]
+        , p [ class "date" ] [ text <| dateString video.publishedAt ]
         ]
       ]
     ]
@@ -137,3 +139,33 @@ icon : String -> Html Msg
 icon name =
   svg [ Svg.Attributes.class ("icon icon-"++name) ]
     [ use [ xlinkHref ("#icon-"++name) ] [] ]
+
+dateString : Time -> String
+dateString time =
+  let
+    date = Date.fromTime time
+  in
+    (toString <| Date.year date) ++ "-" ++
+    (monthNum <| Date.month date) ++ "-" ++
+    (numberPad <| Date.day date)
+
+monthNum mon =
+  case mon of
+    Jan -> "01"
+    Feb -> "02"
+    Mar -> "03"
+    Apr -> "04"
+    May -> "05"
+    Jun -> "06"
+    Jul -> "07"
+    Aug -> "08"
+    Sep -> "09"
+    Oct -> "10"
+    Nov -> "11"
+    Dec -> "12"
+numberPad : Int -> String
+numberPad i =
+  if i < 10 then
+    "0" ++ (toString i)
+  else
+    toString i

@@ -3,8 +3,8 @@ module FollowingVideos exposing (..)
 import Persist exposing (Persist, User)
 import Persist.Encode
 import Persist.Decode
-import Twitch.Deserialize exposing (Follow, Video)
-import Twitch exposing (helix)
+import Twitch.Helix.Decode as Helix exposing (Follow, Video)
+import Twitch.Helix as Helix
 import TwitchId
 import View
 import Harbor
@@ -27,9 +27,9 @@ videoLimit = requestLimit
 type Msg
   = Loaded (Maybe Persist)
   | CurrentUrl Location
-  | Self (Result Http.Error (List Twitch.Deserialize.User))
+  | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Follow))
-  | Users (Result Http.Error (List Twitch.Deserialize.User))
+  | Users (Result Http.Error (List Helix.User))
   | Videos (Result Http.Error (List Video))
   | NextRequest Time.Time
   | AuthState Uuid
@@ -236,7 +236,7 @@ requestRate auth =
     Nothing ->
       (60*Time.second/rateLimit)
 
-importUser : Twitch.Deserialize.User -> User
+importUser : Helix.User -> User
 importUser user =
   { id = user.id
   , displayName = user.displayName
@@ -248,10 +248,10 @@ fetchSelfUrl =
 
 fetchSelf : Maybe String -> Cmd Msg
 fetchSelf auth =
-  helix <|
+  Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Twitch.Deserialize.users
+    , decoder = Helix.users
     , tagger = Self
     , url = fetchSelfUrl
     }
@@ -265,10 +265,10 @@ fetchUsers auth users =
   if List.isEmpty users then
     Cmd.none
   else
-    helix <|
+    Helix.send <|
       { clientId = TwitchId.clientId
       , auth = auth
-      , decoder = Twitch.Deserialize.users
+      , decoder = Helix.users
       , tagger = Users
       , url = (fetchUsersUrl users)
       }
@@ -282,10 +282,10 @@ fetchFollows auth userIds =
   if List.isEmpty userIds then
     Cmd.none
   else
-    helix <|
+    Helix.send <|
       { clientId = TwitchId.clientId
       , auth = auth
-      , decoder = Twitch.Deserialize.follows
+      , decoder = Helix.follows
       , tagger = Follows
       , url = (fetchFollowsUrl userIds)
       }
@@ -296,10 +296,10 @@ fetchVideosUrl userId =
 
 fetchVideos : Maybe String -> String -> Cmd Msg
 fetchVideos auth userId =
-  helix <|
+  Helix.send <|
     { clientId = TwitchId.clientId
     , auth = auth
-    , decoder = Twitch.Deserialize.videos
+    , decoder = Helix.videos
     , tagger = Videos
     , url = (fetchVideosUrl userId)
     }
