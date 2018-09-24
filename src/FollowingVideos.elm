@@ -19,6 +19,8 @@ import Random
 import Set exposing (Set)
 import Task
 import Url exposing (Url)
+import Url.Parser
+import Url.Parser.Query
 
 requestLimit = 100
 rateLimit = 30
@@ -314,15 +316,6 @@ fetchVideos auth userId =
 
 extractHashArgument : String -> Url -> Maybe String
 extractHashArgument key location =
-  location.fragment
-    |> Maybe.withDefault ""
-    |> String.split "&"
-    |> List.map (String.split "=")
-    |> List.filter (\x -> case List.head x of
-      Just s ->
-        s == key
-      Nothing ->
-        False)
-    |> List.head
-    |> Maybe.andThen List.tail
-    |> Maybe.andThen List.head
+  { location | path = "", query = location.fragment }
+    |> Url.Parser.parse (Url.Parser.query (Url.Parser.Query.string key))
+    |> Maybe.withDefault Nothing
