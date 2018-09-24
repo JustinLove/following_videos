@@ -146,7 +146,7 @@ urlForRedirect url =
 icon : String -> Html Msg
 icon name =
   svg [ Svg.Attributes.class ("icon icon-"++name) ]
-    [ use [ xlinkHref ("#icon-"++name) ] [] ]
+    [ use [ xlinkHref ("symbol-defs.svg#icon-"++name) ] [] ]
 
 dateString : Zone -> Posix -> String
 dateString zone time =
