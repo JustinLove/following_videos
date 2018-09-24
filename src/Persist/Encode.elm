@@ -8,7 +8,7 @@ import Json.Encode exposing (..)
 persist : Persist -> Value
 persist p =
   object
-    [ ("users", list <| List.map user p.users)
+    [ ("users", list user p.users)
     , ("authState", maybe Uuid.encode p.authState)
     ]
 

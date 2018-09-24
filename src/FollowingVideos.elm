@@ -9,15 +9,16 @@ import TwitchId
 import View
 import Harbor
 
-import Html
-import Navigation exposing (Location)
+import Browser
 import Http
-import Time
+import Time exposing (Posix, Zone)
 import Json.Decode
 import Json.Encode
 import Uuid exposing (Uuid)
-import Random.Pcg as Random
+import Random
 import Set exposing (Set)
+import Task
+import Url exposing (Url)
 
 requestLimit = 100
 rateLimit = 30
@@ -26,17 +27,18 @@ videoLimit = requestLimit
 
 type Msg
   = Loaded (Maybe Persist)
-  | CurrentUrl Location
+  | CurrentZone Zone
   | Self (Result Http.Error (List Helix.User))
   | Follows (Result Http.Error (List Follow))
   | Users (Result Http.Error (List Helix.User))
   | Videos (Result Http.Error (List Video))
-  | NextRequest Time.Time
+  | NextRequest Posix
   | AuthState Uuid
   | UI (View.Msg)
 
 type alias Model =
-  { location : Location
+  { location : Url
+  , zone : Zone
   , responseState : Maybe Uuid
   , requestState : Maybe Uuid
   , auth : Maybe String
@@ -49,21 +51,24 @@ type alias Model =
   , outstandingRequests : Int
   }
 
-main = Navigation.program CurrentUrl
+main = Browser.document
   { init = init
   , update = update
   , subscriptions = subscriptions
-  , view = (\model -> Html.map UI (View.view model))
+  , view = View.document UI
   }
 
-init : Location -> (Model, Cmd Msg)
-init location =
+init : String -> (Model, Cmd Msg)
+init href =
   let
-    auth = extractHashArgument "access_token" location
-    state = extractHashArgument "state" location
+    url = Url.fromString href
+      |> Maybe.withDefault (Url Url.Http "" Nothing "" Nothing Nothing)
+    auth = extractHashArgument "access_token" url
+    state = extractHashArgument "state" url
       |> Maybe.andThen Uuid.fromString
   in
-  ( { location = location
+  ( { location = url
+    , zone = Time.utc
     , responseState = state
     , requestState = Nothing
     , auth = auth
@@ -75,7 +80,10 @@ init location =
     , pendingRequests = []
     , outstandingRequests = 0
     }
-  , Random.generate AuthState Uuid.uuidGenerator
+  , Cmd.batch
+    [ Random.generate AuthState Uuid.uuidGenerator
+    , Task.perform CurrentZone Time.here
+    ]
   )
 
 update: Msg -> Model -> (Model, Cmd Msg)
@@ -90,8 +98,8 @@ update msg model =
         )
       , Cmd.none
       )
-    CurrentUrl location ->
-      ( { model | location = location }, Cmd.none)
+    CurrentZone zone ->
+      ( {model | zone = zone}, Cmd.none)
     Self (Ok (user::_)) ->
       ( { model
         | self = importUser user
@@ -232,9 +240,9 @@ requestRate : Maybe String -> Float
 requestRate auth =
   case auth of
     Just _ ->
-      (60*Time.second/authRateLimit)
+      (60*1000/authRateLimit)
     Nothing ->
-      (60*Time.second/rateLimit)
+      (60*1000/rateLimit)
 
 importUser : Helix.User -> User
 importUser user =
@@ -304,10 +312,10 @@ fetchVideos auth userId =
     , url = (fetchVideosUrl userId)
     }
 
-extractHashArgument : String -> Location -> Maybe String
+extractHashArgument : String -> Url -> Maybe String
 extractHashArgument key location =
-  location.hash
-    |> String.dropLeft 1
+  location.fragment
+    |> Maybe.withDefault ""
     |> String.split "&"
     |> List.map (String.split "=")
     |> List.filter (\x -> case List.head x of

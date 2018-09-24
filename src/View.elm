@@ -1,4 +1,4 @@
-module View exposing (Msg(..), view)
+module View exposing (Msg(..), view, document)
 
 import Persist exposing (User)
 import Twitch.Template exposing (imagePercentTemplateUrl)
@@ -11,10 +11,10 @@ import Html.Keyed as Keyed
 import Svg exposing (svg, use)
 import Svg.Attributes exposing (xlinkHref)
 import Http
-import Navigation exposing (Location)
 import Uuid exposing (Uuid)
-import Date exposing (Month(..))
-import Time exposing (Time)
+import Time exposing (Posix, Zone, Month(..))
+import Url exposing (Url)
+import Url.Builder as Url
 
 type Msg
   = Refresh
@@ -46,6 +46,11 @@ a:link, a:visited { color: #b19dd8; }
 a:hover, a:active { color: rgb(218, 216, 222); }
 """
 
+document tagger model =
+  { title = "Following Videos"
+  , body = [Html.map tagger (view model)]
+  }
+
 --view : Model -> Html Msg
 view model =
   div []
@@ -54,7 +59,7 @@ view model =
     , Keyed.ul [ id "videos" ]
       <| List.map (videoView model)
       <| List.reverse
-      <| List.sortBy .publishedAt model.videos
+      <| List.sortBy (.publishedAt>>Time.posixToMillis) model.videos
     , footer []
       [ a [ href "https://github.com/JustinLove/following_videos" ]
         [ icon "github", text "following_videos" ]
@@ -71,14 +76,14 @@ displayHeader model =
   header []
     [ displayLogin model
     , text " following "
-    , span [ class "follows" ] [ text <| toString <| List.length model.follows ]
+    , span [ class "follows" ] [ text <| String.fromInt <| List.length model.follows ]
     , text " "
     , progress
-      [ Html.Attributes.max <| toString <| List.length model.follows
-      , value <| toString <| List.length model.pendingRequests
+      [ Html.Attributes.max <| String.fromInt <| List.length model.follows
+      , value <| String.fromInt <| List.length model.pendingRequests
       ] []
     , text " "
-    , span [ class "pending" ] [ text <| toString <| List.length model.pendingRequests ]
+    , span [ class "pending" ] [ text <| String.fromInt <| List.length model.pendingRequests ]
     , text " "
     ]
 
@@ -94,7 +99,7 @@ videoView model video =
         [ p [ class "title", title video.title ] [ text video.title ]
         , br [] []
         , p [ class "name" ] [ text name ]
-        , p [ class "date" ] [ text <| dateString video.publishedAt ]
+        , p [ class "date" ] [ text <| dateString model.zone video.publishedAt ]
         ]
       ]
     ]
@@ -112,7 +117,7 @@ displayLogin model =
       span []
         [ span [ class "user", title model.self.id ] [ text model.self.displayName ]
         , text " "
-        , a [ href (model.location.origin ++ model.location.pathname) ] [ text "logout" ]
+        , a [ href (Url.relative [] []) ] [ text "logout" ]
         , text " "
         , button [onClick Refresh] [ text "Refresh" ]
         ]
@@ -122,33 +127,34 @@ displayLogin model =
 authorizeUrl : String -> Maybe Uuid -> String
 authorizeUrl redirectUri authState =
   "https://api.twitch.tv/kraken/oauth2/authorize"
-    ++ "?client_id=" ++ TwitchId.clientId
-    ++ "&redirect_uri=" ++ (Http.encodeUri redirectUri)
-    ++ "&response_type=token"
-    ++ (case authState of
-      Just uuid -> "&state=" ++ (Uuid.toString uuid)
-      Nothing -> "")
+    ++ (
+      List.append
+        [ Url.string "client_id" TwitchId.clientId
+        , Url.string "redirect_uri" redirectUri
+        , Url.string "response_type" "token"
+        ]
+        (case authState of
+          Just uuid -> [ Url.string "state" (Uuid.toString uuid) ]
+          Nothing -> [])
+      |> Url.toQuery
+      )
 
-urlForRedirect : Location -> String
-urlForRedirect location =
-  location.href
-    |> String.dropRight (String.length location.hash)
-    |> String.dropRight (String.length location.search)
+urlForRedirect : Url -> String
+urlForRedirect url =
+  {url | query = Nothing, fragment = Nothing } |> Url.toString
 
 icon : String -> Html Msg
 icon name =
   svg [ Svg.Attributes.class ("icon icon-"++name) ]
     [ use [ xlinkHref ("#icon-"++name) ] [] ]
 
-dateString : Time -> String
-dateString time =
-  let
-    date = Date.fromTime time
-  in
-    (toString <| Date.year date) ++ "-" ++
-    (monthNum <| Date.month date) ++ "-" ++
-    (numberPad <| Date.day date)
+dateString : Zone -> Posix -> String
+dateString zone time =
+  (String.fromInt <| Time.toYear zone time) ++ "-" ++
+  (monthNum <| Time.toMonth zone time) ++ "-" ++
+  (numberPad <| Time.toDay zone time)
 
+monthNum : Month -> String
 monthNum mon =
   case mon of
     Jan -> "01"
@@ -163,9 +169,10 @@ monthNum mon =
     Oct -> "10"
     Nov -> "11"
     Dec -> "12"
+
 numberPad : Int -> String
 numberPad i =
   if i < 10 then
-    "0" ++ (toString i)
+    "0" ++ (String.fromInt i)
   else
-    toString i
+    String.fromInt i
